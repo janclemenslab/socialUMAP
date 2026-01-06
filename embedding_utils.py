@@ -48,24 +48,23 @@ def save_figure_data(fig, data, folder, figname, dpi=300, figfmt=".svg",
     """
     Save a matplotlib figure along with associated data to disk.
 
-    Parameters
-    ----------
-    fig : matplotlib.figure.Figure
-        Figure object to save.
-    data : dict or pandas.DataFrame or None
-        Data associated with the figure.
-    folder : str
-        Output directory.
-    figname : str
-        Base filename (without extension).
-    dpi : int, optional
-        Figure resolution.
-    figfmt : str, optional
-        Figure file format.
-    pickle_data : bool, optional
-        Whether to pickle dictionary data instead of saving as NPZ.
-    rewrite : bool, optional
-        Whether to overwrite existing files.
+    Args:
+        fig : matplotlib.figure.Figure
+            Figure object to save.
+        data : dict or pandas.DataFrame or None
+            Data associated with the figure.
+        folder : str
+            Output directory.
+        figname : str
+            Base filename (without extension).
+        dpi : int, optional
+            Figure resolution.
+        figfmt : str, optional
+            Figure file format.
+        pickle_data : bool, optional
+            Whether to pickle dictionary data instead of saving as NPZ.
+        rewrite : bool, optional
+            Whether to overwrite existing files.
     """
     if rewrite or not os.path.exists(os.path.join(folder, figname + figfmt)):
         fig.savefig(os.path.join(folder, figname + figfmt), dpi=dpi)
@@ -91,29 +90,27 @@ def time_delay_embedding(X_data, y_data=None, nb_delays=50,
     """
     Compute a time-delay embedding of input features.
 
-    Parameters
-    ----------
-    X_data : ndarray
-        Input feature matrix (time x features).
-    y_data : ndarray or None
-        Optional target values.
-    nb_delays : int
-        Number of delay steps.
-    indices : array-like or None
-        Indices to include.
-    multi_features : bool
-        Whether to flatten features inside the delay window.
-    padding : {'same', None}
-        Pad input to preserve original length.
-    remove_nans : bool
-        Remove rows containing NaNs.
+    Args:
+        X_data : ndarray
+            Input feature matrix (time x features).
+        y_data : ndarray or None
+            Optional target values.
+        nb_delays : int
+            Number of delay steps.
+        indices : array-like or None
+            Indices to include.
+        multi_features : bool
+            Whether to flatten features inside the delay window.
+        padding : {'same', None}
+            Pad input to preserve original length.
+        remove_nans : bool
+            Remove rows containing NaNs.
 
-    Returns
-    -------
-    Xs : ndarray
-        Time-delay embedded features.
-    ys : ndarray, optional
-        Corresponding targets.
+    Returns:
+        Xs : ndarray
+            Time-delay embedded features.
+        ys : ndarray, optional
+            Corresponding targets.
     """
     nb_points, nb_stim = X_data.shape
 
@@ -145,25 +142,23 @@ def basis_transformation(Xs, nb_delays=50, basis_fn=None,
     """
     Project time-delay embedded features onto a temporal basis.
 
-    Parameters
-    ----------
-    Xs : ndarray
-        Time-delay embedded features.
-    nb_delays : int
-        Number of delays.
-    basis_fn : ndarray or None
-        Custom basis functions.
-    multi_features : bool
-        Whether multiple features are flattened.
-    nb_stim : int or None
-        Number of stimulus dimensions.
+    Args:
+        Xs : ndarray
+            Time-delay embedded features.
+        nb_delays : int
+            Number of delays.
+        basis_fn : ndarray or None
+            Custom basis functions.
+        multi_features : bool
+            Whether multiple features are flattened.
+        nb_stim : int or None
+            Number of stimulus dimensions.
 
-    Returns
-    -------
-    Xs_b : ndarray
-        Basis-transformed features.
-    basis_projection : preprocessing.BasisProjection
-        Projection object.
+    Returns:
+        Xs_b : ndarray
+            Basis-transformed features.
+        basis_projection : preprocessing.BasisProjection
+            Projection object.
     """
     if basis_fn is None:
         B = bases.raised_cosine(1, 7, [0, 12], 1, w=nb_delays)
@@ -189,15 +184,13 @@ def get_state_dwell_times(state_sequence):
     """
     Compute dwell times for each discrete state.
 
-    Parameters
-    ----------
-    state_sequence : array-like
-        Sequence of discrete states.
+    Args:
+        state_sequence : array-like
+            Sequence of discrete states.
 
-    Returns
-    -------
-    dict
-        Mapping from state to list of dwell durations.
+    Returns:
+        dict
+            Mapping from state to list of dwell durations.
     """
     dwell_times = {state: [] for state in np.unique(state_sequence)}
     grouped_seq_lengths = [(k, sum(1 for _ in g)) for k, g in groupby(state_sequence)]
@@ -211,19 +204,17 @@ def get_state_transition_indices(state_sequence, transition_of_interest,
     """
     Identify indices where specific state transitions occur.
 
-    Parameters
-    ----------
-    state_sequence : array-like
-        Discrete state sequence.
-    transition_of_interest : tuple
-        (source_states, destination_states).
-    min_recurrent_duration_samples : int
-        Minimum dwell time before and after transition.
+    Args:
+        state_sequence : array-like
+            Discrete state sequence.
+        transition_of_interest : tuple
+            (source_states, destination_states).
+        min_recurrent_duration_samples : int
+            Minimum dwell time before and after transition.
 
-    Returns
-    -------
-    ndarray
-        Indices of detected transitions.
+    Returns:
+        ndarray
+            Indices of detected transitions.
     """
     if min_recurrent_duration_samples < 1:
         min_recurrent_duration_samples = 1
