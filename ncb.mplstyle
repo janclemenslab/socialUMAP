@@ -12,9 +12,11 @@ axes.spines.top: False
 axes.spines.right: False
 
 #xtick.labelsize: 7
+xtick.labelsize: 12
 #xtick.major.width: 0.5
 
 #ytick.labelsize: 7
+ytick.labelsize: 12
 #ytick.major.width: 0.5
 
 lines.markeredgecolor: auto
@@ -31,10 +33,10 @@ legend.frameon: False
 
 image.interpolation: nearest
 image.aspect: auto
-image.origin: upper
+image.origin: lower
 
 font.family: Helvetica, Arial
-font.size:13
+font.size: 14
 
 pdf.fonttype: 42
 ps.fonttype: 42

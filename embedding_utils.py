@@ -26,25 +26,20 @@ from KDEpy import FFTKDE
 from skimage.feature import peak_local_max
 from scipy import ndimage, signal
 from skimage.segmentation import watershed
-from matplotlib.animation import FuncAnimation
-import shelve
 from itertools import groupby
 from glm_utils import bases, preprocessing
-from umap.parametric_umap import ParametricUMAP
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from sklearn.model_selection import GridSearchCV, train_test_split
+from sklearn.model_selection import train_test_split
 import time
 import matplotlib as mpl
-from joblib import Parallel, delayed
-import tensorflow as tf
 
 
 # =============================================================================
 # Utility functions
 # =============================================================================
 
-def save_figure_data(fig, data, folder, figname, dpi=300, figfmt=".svg",
-                     pickle_data=False, rewrite=True):
+
+def save_figure_data(fig, data, folder, figname, dpi=300, figfmt=".svg", pickle_data=False, rewrite=True):
     """
     Save a matplotlib figure along with associated data to disk.
 
@@ -84,9 +79,9 @@ def save_figure_data(fig, data, folder, figname, dpi=300, figfmt=".svg",
                 data.to_csv(os.path.join(folder, figname + ".csv"))
 
 
-def time_delay_embedding(X_data, y_data=None, nb_delays=50,
-                         indices=None, multi_features=False, padding=None,
-                         remove_nans=False):
+def time_delay_embedding(
+    X_data, y_data=None, nb_delays=50, indices=None, multi_features=False, padding=None, remove_nans=False
+):
     """
     Compute a time-delay embedding of input features.
 
@@ -120,11 +115,7 @@ def time_delay_embedding(X_data, y_data=None, nb_delays=50,
             y_data = np.pad(y_data, (nb_delays, 0))
 
     Xs_ys = preprocessing.time_delay_embedding(
-        X_data,
-        y_data,
-        window_size=nb_delays,
-        flatten_inside_window=multi_features,
-        indices=indices
+        X_data, y_data, window_size=nb_delays, flatten_inside_window=multi_features, indices=indices
     )
 
     Xs = Xs_ys if y_data is None else Xs_ys[0]
@@ -137,8 +128,7 @@ def time_delay_embedding(X_data, y_data=None, nb_delays=50,
         return Xs[~nan_rows], ys[~nan_rows]
 
 
-def basis_transformation(Xs, nb_delays=50, basis_fn=None,
-                         multi_features=False, nb_stim=None):
+def basis_transformation(Xs, nb_delays=50, basis_fn=None, multi_features=False, nb_stim=None):
     """
     Project time-delay embedded features onto a temporal basis.
 
@@ -199,8 +189,7 @@ def get_state_dwell_times(state_sequence):
     return dwell_times
 
 
-def get_state_transition_indices(state_sequence, transition_of_interest,
-                                 min_recurrent_duration_samples=1):
+def get_state_transition_indices(state_sequence, transition_of_interest, min_recurrent_duration_samples=1):
     """
     Identify indices where specific state transitions occur.
 
@@ -231,18 +220,16 @@ def get_state_transition_indices(state_sequence, transition_of_interest,
     source_states = list(source_states) if isinstance(source_states, (list, tuple)) else [source_states]
     destination_states = list(destination_states) if isinstance(destination_states, (list, tuple)) else [destination_states]
 
-    is_transition[
-        min_recurrent_duration_samples:len(is_transition) - min_recurrent_duration_samples + 1
-    ] = [
-        (len(np.unique(state_sequence[i - min_recurrent_duration_samples:i])) == 1) and
-        (state_sequence[i - 1] in source_states) and
-        (len(np.unique(state_sequence[i:i + min_recurrent_duration_samples])) == 1) and
-        (state_sequence[i] in destination_states)
-        for i in range(min_recurrent_duration_samples,
-                       len(is_transition) - min_recurrent_duration_samples + 1)
+    is_transition[min_recurrent_duration_samples : len(is_transition) - min_recurrent_duration_samples + 1] = [
+        (len(np.unique(state_sequence[i - min_recurrent_duration_samples : i])) == 1)
+        and (state_sequence[i - 1] in source_states)
+        and (len(np.unique(state_sequence[i : i + min_recurrent_duration_samples])) == 1)
+        and (state_sequence[i] in destination_states)
+        for i in range(min_recurrent_duration_samples, len(is_transition) - min_recurrent_duration_samples + 1)
     ]
 
     return np.where(is_transition)[0]
+
 
 def fill_gaps(data, max_gap_length=200, gap_value=0, fill_value=1):
     """
@@ -264,7 +251,7 @@ def fill_gaps(data, max_gap_length=200, gap_value=0, fill_value=1):
 
     for value, length in grouped_data[1:]:
         if value == gap_value and length < max_gap_length:
-            corrected_data[idx:idx + length] = prev_value if fill_value is None else fill_value
+            corrected_data[idx : idx + length] = prev_value if fill_value is None else fill_value
         else:
             prev_value = value
         idx += length
@@ -295,7 +282,7 @@ def remove_short_segments(data, min_segment_length, segment_label=None):
             continue
 
         if length < min_segment_length:
-            corrected_data[idx:idx + length] = prev_segment
+            corrected_data[idx : idx + length] = prev_segment
         else:
             prev_segment = segment
         idx += length
@@ -329,7 +316,7 @@ def unwrap_angle_metrics(angles, discont=180, fs=None, cutoff_freq=None, order=6
     angles_unwrap = np.array(angles.ravel())
 
     for idx in signchange_idx:
-        angles_unwrap[idx + 1:] -= angles_diff[idx]
+        angles_unwrap[idx + 1 :] -= angles_diff[idx]
 
     if cutoff_freq is not None:
         valid = ~np.isnan(angles_unwrap)
@@ -375,10 +362,7 @@ def get_freq_scales(fmin, fmax, Nf, fs, spacing="uniform"):
             - scales (numpy.ndarray)
     """
     if spacing == "dyadic":
-        freqs = np.array([
-            fmax * 2 ** (-(i / (Nf - 1)) * np.log2(fmax / fmin))
-            for i in range(Nf)
-        ])
+        freqs = np.array([fmax * 2 ** (-(i / (Nf - 1)) * np.log2(fmax / fmin)) for i in range(Nf)])
     else:
         freqs = np.linspace(fmin, fmax, Nf)
 
@@ -400,20 +384,24 @@ def normalize_pose_positions_fly(pose_positions_fly, poseparts, ref_poses=("head
     """
     fly_length = np.nanmean(
         np.linalg.norm(
-            pose_positions_fly[:, poseparts == ref_poses[0], :] -
-            pose_positions_fly[:, poseparts == ref_poses[1], :],
+            pose_positions_fly[:, poseparts == ref_poses[0], :] - pose_positions_fly[:, poseparts == ref_poses[1], :],
             axis=1,
         )
     )
     return pose_positions_fly / fly_length
 
-def compute_wavelet(time, signal, scales,
-                    waveletname='cmor1.5-1.0',
-                    plot=False,
-                    cmap=plt.cm.seismic,
-                    title='Wavelet Transform (Power Spectrum) of signal',
-                    ylabel='Frequency (Hz)',
-                    xlabel='Time'):
+
+def compute_wavelet(
+    time,
+    signal,
+    scales,
+    waveletname="cmor1.5-1.0",
+    plot=False,
+    cmap=plt.cm.seismic,
+    title="Wavelet Transform (Power Spectrum) of signal",
+    ylabel="Frequency (Hz)",
+    xlabel="Time",
+):
     """
     Compute the continuous wavelet transform and power spectrum of a signal.
 
@@ -437,9 +425,7 @@ def compute_wavelet(time, signal, scales,
     dt = time[1] - time[0]
     signal = np.nan_to_num(signal)
 
-    coefficients, frequencies = pywt.cwt(
-        signal, scales, waveletname, dt, method='fft'
-    )
+    coefficients, frequencies = pywt.cwt(signal, scales, waveletname, dt, method="fft")
     power = np.abs(coefficients) ** 2
 
     if plot and signal.ndim == 1:
@@ -455,7 +441,7 @@ def compute_wavelet(time, signal, scales,
             np.log2(frequencies),
             np.log2(power),
             contourlevels,
-            extend='both',
+            extend="both",
             cmap=cmap,
         )
 
@@ -463,10 +449,7 @@ def compute_wavelet(time, signal, scales,
         ax[1].set_ylabel(ylabel)
         ax[1].set_xlabel(xlabel)
 
-        yticks = 2 ** np.arange(
-            np.ceil(np.log2(frequencies.min())),
-            np.ceil(np.log2(frequencies.max()))
-        )
+        yticks = 2 ** np.arange(np.ceil(np.log2(frequencies.min())), np.ceil(np.log2(frequencies.max())))
         ax[1].set_yticks(np.log2(yticks))
         ax[1].set_yticklabels(yticks)
 
@@ -504,19 +487,11 @@ def get_poselets(pose_positions_xy, timestamps, poselet_length=10, stride_length
         axis=0,
     )
 
-    timestamps_padded = np.concatenate(
-        (np.zeros(poselet_length // 2), timestamps, np.zeros(poselet_length // 2))
-    )
+    timestamps_padded = np.concatenate((np.zeros(poselet_length // 2), timestamps, np.zeros(poselet_length // 2)))
 
-    poselets = [
-        pose_positions_padded[p * stride_length:p * stride_length + poselet_length]
-        for p in range(nb_poselets)
-    ]
+    poselets = [pose_positions_padded[p * stride_length : p * stride_length + poselet_length] for p in range(nb_poselets)]
 
-    poselet_timestamps = [
-        timestamps_padded[p * stride_length + poselet_length // 2]
-        for p in range(nb_poselets)
-    ]
+    poselet_timestamps = [timestamps_padded[p * stride_length + poselet_length // 2] for p in range(nb_poselets)]
 
     poselets = np.stack(poselets)
     poselets_poses = np.nanmean(poselets, axis=1)
@@ -531,8 +506,7 @@ class UMAPEmbedding(umap.UMAP):
     Provides prediction and scoring via inverse transform.
     """
 
-    def __init__(self, n_components=2, n_neighbors=15, min_dist=0.1,
-                 metric="euclidean", random_state=None):
+    def __init__(self, n_components=2, n_neighbors=15, min_dist=0.1, metric="euclidean", random_state=None):
         super().__init__(
             n_components=n_components,
             n_neighbors=n_neighbors,
@@ -551,9 +525,7 @@ class UMAPEmbedding(umap.UMAP):
             train_size (float, optional): Fraction of data used for fitting.
         """
         if train_size is not None:
-            train_idx = np.linspace(
-                0, X.shape[0] - 1, int(X.shape[0] * train_size), dtype=int
-            )
+            train_idx = np.linspace(0, X.shape[0] - 1, int(X.shape[0] * train_size), dtype=int)
             X_train = X[train_idx]
         else:
             X_train = np.array(X)
@@ -588,102 +560,12 @@ class UMAPEmbedding(umap.UMAP):
         """
         X_pred = self.predict(X_test)
         if metric == "rmse":
-            return mean_squared_error(
-                X_test.flatten(), X_pred.flatten(), squared=False
-            )
+            return mean_squared_error(X_test.flatten(), X_pred.flatten(), squared=False)
         elif metric == "mae":
             return mean_absolute_error(X_test.flatten(), X_pred.flatten())
         else:
             raise NotImplementedError
 
-
-class AutoEncoderUMAP(ParametricUMAP):
-    """
-    Parametric UMAP using an autoencoder architecture.
-    """
-
-    def __init__(
-        self,
-        input_dim,
-        num_encoder_layers=(100, 100, 100),
-        num_decoder_layers=(100, 100, 100),
-        activation="relu",
-        min_dist=0.1,
-        n_neighbors=15,
-        random_state=None,
-        n_components=2,
-        reconstruction_validation=None,
-        parametric_reconstruction_loss_fcn=tf.keras.losses.MeanSquaredError(),
-        verbose=True,
-        n_training_epochs=1,
-    ):
-        """
-        Initialize AutoEncoderUMAP.
-
-        Args:
-            input_dim (tuple): Input dimensionality.
-            num_encoder_layers (tuple): Encoder layer sizes.
-            num_decoder_layers (tuple): Decoder layer sizes.
-            activation (str): Activation function.
-            min_dist (float): UMAP minimum distance.
-            n_neighbors (int): UMAP neighbors.
-            random_state (int, optional): Random seed.
-            n_components (int): Embedding dimensionality.
-            reconstruction_validation (numpy.ndarray, optional): Validation set.
-            parametric_reconstruction_loss_fcn: Reconstruction loss.
-            verbose (bool): Verbosity.
-            n_training_epochs (int): Training epochs.
-        """
-        self.input_dim = input_dim
-        self.num_encoder_layers = num_encoder_layers
-        self.num_decoder_layers = num_decoder_layers
-        self.n_components = n_components
-        self.activation = activation
-        self.parametric_reconstruction_loss_fcn = parametric_reconstruction_loss_fcn
-        self.verbose = verbose
-        self.n_training_epochs = n_training_epochs
-        self.n_neighbors = n_neighbors
-        self.min_dist = min_dist
-        self.random_state = random_state
-
-        encoder_layers = [tf.keras.layers.InputLayer(input_shape=input_dim[0])]
-        for units in num_encoder_layers:
-            encoder_layers.append(tf.keras.layers.Dense(units, activation=activation))
-        encoder_layers.append(tf.keras.layers.Dense(n_components))
-        self.encoder = tf.keras.Sequential(encoder_layers)
-
-        decoder_layers = [tf.keras.layers.InputLayer(input_shape=n_components)]
-        for units in num_decoder_layers:
-            decoder_layers.append(tf.keras.layers.Dense(units, activation=activation))
-        decoder_layers.append(tf.keras.layers.Dense(input_dim[0]))
-        self.decoder = tf.keras.Sequential(decoder_layers)
-
-        keras_fit_kwargs = {
-            "callbacks": [
-                tf.keras.callbacks.EarlyStopping(
-                    monitor="loss",
-                    min_delta=1e-2,
-                    patience=10,
-                    verbose=1,
-                )
-            ]
-        }
-
-        super().__init__(
-            encoder=self.encoder,
-            decoder=self.decoder,
-            dims=self.input_dim,
-            parametric_reconstruction=True,
-            reconstruction_validation=reconstruction_validation,
-            parametric_reconstruction_loss_fcn=self.parametric_reconstruction_loss_fcn,
-            autoencoder_loss=True,
-            verbose=self.verbose,
-            keras_fit_kwargs=keras_fit_kwargs,
-            n_training_epochs=self.n_training_epochs,
-            n_neighbors=self.n_neighbors,
-            min_dist=self.min_dist,
-            random_state=self.random_state,
-        )
 
 def umap_multiple_fits(
     X,
@@ -727,24 +609,18 @@ def umap_multiple_fits(
         if isinstance(X, list):
             X_delay = []
             for trial_X in X:
-                X_td = time_delay_embedding(
-                    trial_X, nb_delays=nb_delays, multi_features=True
-                )
+                X_td = time_delay_embedding(trial_X, nb_delays=nb_delays, multi_features=True)
                 X_delay.append(X_td)
             X_delay = np.concatenate(X_delay, axis=0)
         else:
-            X_delay = time_delay_embedding(
-                X, nb_delays=nb_delays, multi_features=True, remove_nans=True
-            )
+            X_delay = time_delay_embedding(X, nb_delays=nb_delays, multi_features=True, remove_nans=True)
 
         train_indices = np.zeros(len(X_delay), bool)
         train_indices[np.arange(0, len(train_indices), int(1 / train_size))] = True
         X_train = X_delay[train_indices]
 
         if val_size is not None:
-            _, X_val = train_test_split(
-                X_delay[~train_indices], test_size=val_size
-            )
+            _, X_val = train_test_split(X_delay[~train_indices], test_size=val_size)
 
         for n_components in n_components_grid:
             for n_neighbors in n_neighbors_grid:
@@ -787,12 +663,8 @@ def umap_multiple_fits(
                             metric=metric,
                         )
                         result = fit_results[str(args)]
-                        ax[i, j].scatter(
-                            *result["reducer"].embedding_.T, s=1, alpha=0.5
-                        )
-                        ax[i, j].set_title(
-                            f'score={result["val_score"]:.2f}'
-                        )
+                        ax[i, j].scatter(*result["reducer"].embedding_.T, s=1, alpha=0.5)
+                        ax[i, j].set_title(f"score={result['val_score']:.2f}")
                 plt.show()
 
     return fit_results
@@ -851,8 +723,7 @@ def umap_train_validate(
     }
 
 
-def umap_fit(X, n_neighbors=15, min_dist=0.1, n_components=2,
-             train_size=0.2, random_state=None):
+def umap_fit(X, n_neighbors=15, min_dist=0.1, n_components=2, train_size=0.2, random_state=None):
     """
     Fit a UMAP model using a subsampled training set.
 
@@ -867,9 +738,7 @@ def umap_fit(X, n_neighbors=15, min_dist=0.1, n_components=2,
     Returns:
         umap.UMAP: Trained reducer.
     """
-    train_idx = np.linspace(
-        0, X.shape[0] - 1, int(X.shape[0] * train_size), dtype=int
-    )
+    train_idx = np.linspace(0, X.shape[0] - 1, int(X.shape[0] * train_size), dtype=int)
 
     reducer = umap.UMAP(
         n_neighbors=n_neighbors,
@@ -902,7 +771,6 @@ def umap_embedding(
     n_components=2,
     train_size=0.1,
     random_state=None,
-    autoencoder=False,
 ):
     """
     Compute UMAP embeddings for multiple trials.
@@ -914,7 +782,6 @@ def umap_embedding(
         n_components (int): Embedding dimension.
         train_size (float): Training fraction.
         random_state (int, optional): Random seed.
-        autoencoder (bool): Use AutoEncoderUMAP.
 
     Returns:
         tuple:
@@ -923,29 +790,13 @@ def umap_embedding(
     """
     X_proc_concat = np.concatenate(X_proc, axis=0, dtype="float32")
     print("Fitting umap embedding ...")
-
-    if autoencoder:
-        X_train_val = X_proc_concat[::int(1 / train_size)]
-        X_train, X_val = train_test_split(X_train_val, test_size=0.2)
-
-        reducer = AutoEncoderUMAP(
-            input_dim=(X_train.shape[1],),
-            min_dist=min_dist,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            reconstruction_validation=X_val,
-            n_training_epochs=2,
-            n_components=n_components,
-        )
-        reducer.fit(X_train)
-    else:
-        reducer = UMAPEmbedding(
-            min_dist=min_dist,
-            n_neighbors=n_neighbors,
-            random_state=random_state,
-            n_components=n_components,
-        )
-        reducer.fit(X_proc_concat, train_size=train_size)
+    reducer = UMAPEmbedding(
+        min_dist=min_dist,
+        n_neighbors=n_neighbors,
+        random_state=random_state,
+        n_components=n_components,
+    )
+    reducer.fit(X_proc_concat, train_size=train_size)
 
     print("Embedding into UMAP ...")
     X_embedded = [reducer.transform(X) for X in X_proc]
@@ -984,22 +835,15 @@ class SpatialClustering:
         X_embedded_concat = np.concatenate(X_embedded, axis=0)
         X_embedded_concat[np.isnan(X_embedded_concat)] = 0
 
-        positions, Z = kernel_density_estimation(
-            X_embedded_concat, self.bw, self.nb_gridpoints
-        )
+        positions, Z = kernel_density_estimation(X_embedded_concat, self.bw, self.nb_gridpoints)
 
-        labels, labels_edge = watershed_segmentation(
-            Z, threshold_factor=self.watershed_threshold
-        )
+        labels, labels_edge = watershed_segmentation(Z, threshold_factor=self.watershed_threshold)
 
         binsize_x = (positions[:, 0].max() - positions[:, 0].min()) / labels.shape[1]
         binsize_y = (positions[:, 1].max() - positions[:, 1].min()) / labels.shape[0]
 
         labels_edge_indices = np.array(np.where(labels_edge)).T
-        labels_edge_positions = (
-            labels_edge_indices[:, [1, 0]] * np.array([[binsize_x, binsize_y]])
-            + positions.min(0)
-        )
+        labels_edge_positions = labels_edge_indices[:, [1, 0]] * np.array([[binsize_x, binsize_y]]) + positions.min(0)
 
         print(f"[INFO] {len(np.unique(labels)) - 1} unique segments found")
 
@@ -1023,11 +867,10 @@ class SpatialClustering:
             kde_pos, Z = kernel_density_estimation(trial, self.bw, positions)
             X_kde.append(Z)
             X_kde_pos.append(kde_pos)
-            X_segments.append(
-                assign_segment_to_features_new(trial, positions, labels)
-            )
+            X_segments.append(assign_segment_to_features_new(trial, positions, labels))
 
         return X_kde, X_kde_pos, X_segments
+
 
 def kernel_density_estimation(embedded_poses, bw, gridpoints=None):
     """
@@ -1044,14 +887,10 @@ def kernel_density_estimation(embedded_poses, bw, gridpoints=None):
             - Z (numpy.ndarray): Density estimate.
     """
     if gridpoints is None or isinstance(gridpoints, int):
-        positions, Z = FFTKDE(kernel="gaussian", bw=bw).fit(
-            embedded_poses
-        ).evaluate(gridpoints)
+        positions, Z = FFTKDE(kernel="gaussian", bw=bw).fit(embedded_poses).evaluate(gridpoints)
     else:
         positions = gridpoints
-        Z = FFTKDE(kernel="gaussian", bw=bw).fit(
-            embedded_poses
-        ).evaluate(gridpoints)
+        Z = FFTKDE(kernel="gaussian", bw=bw).fit(embedded_poses).evaluate(gridpoints)
 
     nb_gridpoints = len(np.unique(positions[:, 0]))
     Z = Z.reshape(nb_gridpoints, nb_gridpoints, order="F")
@@ -1104,9 +943,7 @@ def assign_segment_to_pose(embedded_poses, labels, positions):
     embedded_poses_segment = np.zeros(embedded_poses.shape[:-1], dtype=int)
     labels_flattened = labels.flatten("F")
 
-    positions_array = positions.reshape(
-        labels.shape[0], labels.shape[1], positions.shape[-1]
-    )
+    positions_array = positions.reshape(labels.shape[0], labels.shape[1], positions.shape[-1])
 
     binsize_x = np.mean(np.diff(positions_array[:, 0, 0]))
     binsize_y = np.mean(np.diff(positions_array[0, :, 1]))
@@ -1178,22 +1015,15 @@ def assign_segment_to_features_new(embedded_features, positions, labels):
     binsize_y = (positions[:, 1].max() - positions[:, 1].min()) / labels.shape[0]
 
     embedded_features_bin = np.zeros((embedded_features.shape[0], 2), dtype="uint")
-    embedded_features_bin[:, 0] = np.floor(
-        (embedded_features[:, 0] - positions[:, 0].min()) / binsize_x
-    )
-    embedded_features_bin[:, 1] = np.floor(
-        (embedded_features[:, 1] - positions[:, 1].min()) / binsize_y
-    )
+    embedded_features_bin[:, 0] = np.floor((embedded_features[:, 0] - positions[:, 0].min()) / binsize_x)
+    embedded_features_bin[:, 1] = np.floor((embedded_features[:, 1] - positions[:, 1].min()) / binsize_y)
 
-    for position, label in zip(
-        positions[labels_flattened != 0], labels_flattened[labels_flattened != 0]
-    ):
+    for position, label in zip(positions[labels_flattened != 0], labels_flattened[labels_flattened != 0]):
         position_bin_x = int((position[0] - positions[:, 0].min()) / binsize_x)
         position_bin_y = int((position[1] - positions[:, 1].min()) / binsize_y)
 
         embedded_features_segment[
-            (embedded_features_bin[:, 0] == position_bin_x)
-            & (embedded_features_bin[:, 1] == position_bin_y)
+            (embedded_features_bin[:, 0] == position_bin_x) & (embedded_features_bin[:, 1] == position_bin_y)
         ] = label
 
     return embedded_features_segment
@@ -1233,12 +1063,8 @@ def get_segment_poselets(poselets, embedded_poses_segment):
 
     for seg_idx in np.unique(embedded_poses_segment):
         segment_poselets[seg_idx] = poselets[embedded_poses_segment == seg_idx]
-        average_segment_poselet[seg_idx] = np.nanmean(
-            segment_poselets[seg_idx], axis=0
-        )
-        std_segment_poselet[seg_idx] = np.nanstd(
-            segment_poselets[seg_idx], axis=0
-        )
+        average_segment_poselet[seg_idx] = np.nanmean(segment_poselets[seg_idx], axis=0)
+        std_segment_poselet[seg_idx] = np.nanstd(segment_poselets[seg_idx], axis=0)
 
     return segment_poselets, average_segment_poselet, std_segment_poselet
 
@@ -1259,15 +1085,9 @@ def get_segment_pose_positions(pose_positions, embedded_poses_segment=None):
     segment_pose_positions_std = {}
 
     for seg_idx in np.unique(embedded_poses_segment):
-        segment_pose_positions[seg_idx] = pose_positions[
-            embedded_poses_segment == seg_idx
-        ]
-        segment_pose_positions_avg[seg_idx] = np.nanmean(
-            segment_pose_positions[seg_idx], axis=0
-        )
-        segment_pose_positions_std[seg_idx] = np.nanstd(
-            segment_pose_positions[seg_idx], axis=0
-        )
+        segment_pose_positions[seg_idx] = pose_positions[embedded_poses_segment == seg_idx]
+        segment_pose_positions_avg[seg_idx] = np.nanmean(segment_pose_positions[seg_idx], axis=0)
+        segment_pose_positions_std[seg_idx] = np.nanstd(segment_pose_positions[seg_idx], axis=0)
 
     return (
         segment_pose_positions,
@@ -1321,9 +1141,7 @@ def animate_fly_skeleton(pose_position, poseparts, pose_scat, pose_connector):
     pose_scat.set_offsets(pose_position)
 
     for part in range(len(poseparts)):
-        pose_connector[part].set_data(
-            pose_position[[part, 8], 0], pose_position[[part, 8], 1]
-        )
+        pose_connector[part].set_data(pose_position[[part, 8], 0], pose_position[[part, 8], 1])
 
     return pose_scat, pose_connector
 
@@ -1357,8 +1175,7 @@ def angle_between_lines(lineA, lineB):
     return np.rad2deg(np.arctan((m2 - m1) / (1 + m2 * m1)))
 
 
-def compute_gradients(embedding, nb_gridpoints=None,
-                      xmin=None, xmax=None, ymin=None, ymax=None):
+def compute_gradients(embedding, nb_gridpoints=None, xmin=None, xmax=None, ymin=None, ymax=None):
     """
     Compute gradient magnitudes and directions in embedding space.
 
@@ -1403,9 +1220,7 @@ def compute_gradients(embedding, nb_gridpoints=None,
             if len(idx) > 0:
                 g = gradients[idx]
                 gradient_magnitudes[i, j] = np.nanmedian(np.linalg.norm(g, axis=1))
-                gradient_directions[i, j] = np.nanmedian(
-                    np.rad2deg(np.arctan(g))
-                )
+                gradient_directions[i, j] = np.nanmedian(np.rad2deg(np.arctan(g)))
 
     return gradient_magnitudes, gradient_directions, xbins, ybins
 
@@ -1430,8 +1245,7 @@ def rotate(origin, point, angle):
     return qx, qy
 
 
-def plot_gradients(gradient_directions, gradient_magnitudes,
-                   xbins=None, ybins=None, ax=None):
+def plot_gradients(gradient_directions, gradient_magnitudes, xbins=None, ybins=None, ax=None):
     """
     Plot gradient vectors.
 
@@ -1466,8 +1280,7 @@ def plot_gradients(gradient_directions, gradient_magnitudes,
             ax.arrow(cx, cy, dx - cx, dy - cy, width=0.1)
 
 
-def edit_colormap(base_cmap, ncolors=128,
-                  edit_indices=0, edit_colors=[1, 1, 1, 1]):
+def edit_colormap(base_cmap, ncolors=128, edit_indices=0, edit_colors=[1, 1, 1, 1]):
     """
     Modify a matplotlib colormap.
 
